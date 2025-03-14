@@ -1,0 +1,39 @@
+version: "3.8"
+
+services:
+  api:
+    build: .
+    container_name: api-mongoose
+    ports:
+      - "4567:4567"
+    environment:
+      - API_LISTENING_PORT=4567
+      - MONGODB_URI=mongodb://root:example@mongodb:27017/api-mongoose?authSource=admin
+    depends_on:
+      - mongodb
+    restart: unless-stopped
+    networks:
+      - api-network
+
+  mongodb:
+    image: mongo:latest
+    container_name: mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=example
+      - MONGO_INITDB_DATABASE=api-mongoose
+    volumes:
+      - mongodb_data:/data/db
+    restart: unless-stopped
+    networks:
+      - api-network
+
+networks:
+  api-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+    driver: local

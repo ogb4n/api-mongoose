@@ -23,9 +23,17 @@ export const getAllProfiles = async (
     }
 
     if (skills) {
-      const skillsArray = Array.isArray(skills)
-        ? skills
-        : skills.toString().split(",");
+      let skillsArray;
+      if (Array.isArray(skills)) {
+        skillsArray = skills;
+      } else if (typeof skills === "string") {
+        skillsArray = skills.split(",");
+      } else if (typeof skills === "object" && skills !== null) {
+        // Handle the case where skills might be an object
+        skillsArray = Object.values(skills as Record<string, any>);
+      } else {
+        skillsArray = [];
+      }
       query.skills = { $in: skillsArray };
     }
 
@@ -33,15 +41,30 @@ export const getAllProfiles = async (
       query["information.localisation"] = { $regex: location, $options: "i" };
     }
 
-    const pageNum = parseInt(page.toString(), 10);
-    const limitNum = parseInt(limit.toString(), 10);
+    const pageNum = parseInt(String(page), 10);
+    // Handle limit which could be a string, array, or object
+    let limitStr = "10"; // Default
+    if (typeof limit === "string") {
+      limitStr = limit;
+    } else if (Array.isArray(limit) && limit.length) {
+      limitStr = String(limit[0]);
+    }
+    const limitNum = parseInt(limitStr, 10);
     const skip = (pageNum - 1) * limitNum;
+
+    // Handle sort which could be a string, array, or object
+    let sortStr = "name"; // Default
+    if (typeof sort === "string") {
+      sortStr = sort;
+    } else if (Array.isArray(sort) && sort.length) {
+      sortStr = String(sort[0]);
+    }
 
     const profiles = await UserProfile.find(query)
       .sort(
-        sort.toString().startsWith("-")
-          ? { [sort.toString().substring(1)]: -1 }
-          : { [sort.toString()]: 1 }
+        sortStr.startsWith("-")
+          ? { [sortStr.substring(1)]: -1 }
+          : { [sortStr]: 1 }
       )
       .skip(skip)
       .limit(limitNum);
