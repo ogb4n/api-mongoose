@@ -1,14 +1,62 @@
 import { Request, Response } from "express";
 import UserProfile from "./model";
 
-// Récupérer tous les profils
+// Récupérer tous les profils avec fonctionnalités de recherche et filtrage
 export const getAllProfiles = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   try {
-    const profiles = await UserProfile.find({ deleted: { $ne: true } });
-    res.status(200).json(profiles);
+    const {
+      search,
+      skills,
+      location,
+      page = "1",
+      limit = "10",
+      sort = "name",
+    } = req.query;
+
+    const query: any = { deleted: { $ne: true } };
+
+    if (search) {
+      query.name = { $regex: search, $options: "i" };
+    }
+
+    if (skills) {
+      const skillsArray = Array.isArray(skills)
+        ? skills
+        : skills.toString().split(",");
+      query.skills = { $in: skillsArray };
+    }
+
+    if (location) {
+      query["information.localisation"] = { $regex: location, $options: "i" };
+    }
+
+    const pageNum = parseInt(page.toString(), 10);
+    const limitNum = parseInt(limit.toString(), 10);
+    const skip = (pageNum - 1) * limitNum;
+
+    const profiles = await UserProfile.find(query)
+      .sort(
+        sort.toString().startsWith("-")
+          ? { [sort.toString().substring(1)]: -1 }
+          : { [sort.toString()]: 1 }
+      )
+      .skip(skip)
+      .limit(limitNum);
+
+    const total = await UserProfile.countDocuments(query);
+
+    res.status(200).json({
+      profiles,
+      pagination: {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        pages: Math.ceil(total / limitNum),
+      },
+    });
   } catch (error) {
     res
       .status(500)
